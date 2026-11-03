@@ -51,4 +51,216 @@
     <div class="container">
         <div class="header">
             <h1>AI Inventory CDL</h1>
-            <span style="font-size: 13px; background: rgba(255,255,2
+            <span style="font-size: 13px; background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px;">Permanent Web Link System</span>
+        </div>
+
+        <div class="stats" style="margin-top: 20px;">
+            <div class="card">
+                <h2 id="totalCount">0</h2>
+                <p>Total Inventory Items</p>
+            </div>
+            <div class="card warning">
+                <h2 id="lowCount">0</h2>
+                <p>Low Stock (&lt; 3 Units)</p>
+            </div>
+            <div class="card expiry">
+                <h2 id="expCount">0</h2>
+                <p>Expiring Soon (&lt; 30 Days)</p>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="openModal()">+ Add New Item</button>
+                <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+            </div>
+            <input type="text" id="searchInput" class="search-box" placeholder="Search item name or lot number..." onkeyup="filterTable()">
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item Name</th>
+                    <th>Lot Number</th>
+                    <th>Expiry Date</th>
+                    <th>Quantity</th>
+                    <th>Status Alerts</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="inventoryTableBody">
+                <!-- Dynamic Rows -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Software Modal Window for Add/Edit -->
+    <div id="itemModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="modal-header">Add New Inventory Item</h3>
+            <input type="hidden" id="editIndex">
+            <div class="form-group">
+                <label>ITEM NAME</label>
+                <input type="text" id="modalItemName" placeholder="e.g. Sterile Normal Saline 0.9%">
+            </div>
+            <div class="form-group">
+                <label>LOT NUMBER</label>
+                <input type="text" id="modalItemLot" placeholder="e.g. LOT-2026-A104">
+            </div>
+            <div class="form-group">
+                <label>EXPIRY DATE</label>
+                <input type="date" id="modalItemExpiry">
+            </div>
+            <div class="form-group">
+                <label>QUANTITY</label>
+                <input type="number" id="modalItemQty" min="0" value="1">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" style="background:#e2e8f0; color:#333;" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveItem()">Save Item</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let inventory = JSON.parse(localStorage.getItem('cdl_inventory')) || [
+            { name: "Sterile Normal Saline 0.9% 500mL", lot: "LOT-2026-A104", expiry: "2027-05-15", qty: 2 },
+            { name: "Amoxicillin Trihydrate 500mg", lot: "LOT-2025-B882", expiry: "2026-11-20", qty: 8 }
+        ];
+
+        function renderTable(data = inventory) {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+            
+            let lowStockCount = 0;
+            let expiringCount = 0;
+            const today = new Date();
+
+            data.forEach((item, index) => {
+                const expDate = new Date(item.expiry);
+                const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+
+                let alerts = '';
+                if (item.qty < 3) {
+                    lowStockCount++;
+                    alerts += '<span class="tag-low">LOW STOCK</span><br>';
+                }
+                if (diffDays <= 30 && diffDays >= 0) {
+                    expiringCount++;
+                    alerts += '<span class="tag-exp">EXPIRING SOON</span>';
+                }
+                if (!alerts) alerts = '<span style="color:#10b981; font-weight:600;">OK</span>';
+
+                const qtyClass = item.qty < 3 ? 'qty-badge qty-low' : 'qty-badge';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${item.name}</strong></td>
+                        <td>${item.lot}</td>
+                        <td>${item.expiry}</td>
+                        <td><span class="${qtyClass}">${item.qty}</span></td>
+                        <td>${alerts}</td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, 1)">+1</button>
+                                <button class="btn btn-danger" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, -1)">-1</button>
+                                <button class="btn" style="padding:5px 10px; font-size:12px; background:#e2e8f0;" onclick="openModal(${index})">Edit</button>
+                                <button class="btn btn-danger" style="padding:5px 10px; font-size:12px; background:#cbd5e1; color:#333;" onclick="deleteItem(${index})">Del</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('totalCount').innerText = inventory.length;
+            document.getElementById('lowCount').innerText = lowStockCount;
+            document.getElementById('expCount').innerText = expiringCount;
+            
+            localStorage.setItem('cdl_inventory', JSON.stringify(inventory));
+        }
+
+        function openModal(index = null) {
+            document.getElementById('itemModal').style.display = 'flex';
+            if (index !== null) {
+                document.getElementById('modalTitle').innerText = 'Edit Inventory Item';
+                document.getElementById('editIndex').value = index;
+                document.getElementById('modalItemName').value = inventory[index].name;
+                document.getElementById('modalItemLot').value = inventory[index].lot;
+                document.getElementById('modalItemExpiry').value = inventory[index].expiry;
+                document.getElementById('modalItemQty').value = inventory[index].qty;
+            } else {
+                document.getElementById('modalTitle').innerText = 'Add New Inventory Item';
+                document.getElementById('editIndex').value = '';
+                document.getElementById('modalItemName').value = '';
+                document.getElementById('modalItemLot').value = '';
+                document.getElementById('modalItemExpiry').value = new Date().toISOString().split('T')[0];
+                document.getElementById('modalItemQty').value = '1';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('itemModal').style.display = 'none';
+        }
+
+        function saveItem() {
+            const index = document.getElementById('editIndex').value;
+            const name = document.getElementById('modalItemName').value.trim();
+            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A';
+            const expiry = document.getElementById('modalItemExpiry').value;
+            const qty = parseInt(document.getElementById('modalItemQty').value) || 0;
+
+            if (!name) {
+                alert('Please enter an Item Name.');
+                return;
+            }
+
+            const newItem = { name, lot, expiry, qty };
+
+            if (index === '') {
+                inventory.push(newItem);
+            } else {
+                inventory[index] = newItem;
+            }
+
+            renderTable();
+            closeModal();
+        }
+
+        function deleteItem(index) {
+            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
+                inventory.splice(index, 1);
+                renderTable();
+            }
+        }
+
+        function adjustQty(index, amount) {
+            inventory[index].qty += amount;
+            if (inventory[index].qty < 0) inventory[index].qty = 0;
+            renderTable();
+        }
+
+        function filterTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = inventory.filter(item => 
+                item.name.toLowerCase().includes(query) || item.lot.toLowerCase().includes(query)
+            );
+            renderTable(filtered);
+        }
+
+        function exportCSV() {
+            let csv = 'Item Name,Lot Number,Expiry Date,Quantity\n';
+            inventory.forEach(i => {
+                csv += `"${i.name}","${i.lot}","${i.expiry}",${i.qty}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AI_Inventory_CDL_Backup.csv';
+            a.click();
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
