@@ -32,7 +32,7 @@
         .qty-low { background: #fee2e2; color: #991b1b; }
         .tag-low { color: #dc2626; font-weight: bold; font-size: 12px; background: #fee2e2; padding: 3px 8px; border-radius: 4px; display: inline-block; }
         .tag-exp { color: #d97706; font-weight: bold; font-size: 12px; background: #fef3c7; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 2px; }
-        .action-btns { display: flex; gap: 6px; }
+        .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -60,7 +60,7 @@
 
         <div class="toolbar">
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="openModal()">+ Add New Item</button>
+                <button class="btn btn-primary" onclick="addNewItem()">+ Add New Item</button>
                 <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
             </div>
             <input type="text" id="searchInput" class="search-box" placeholder="Search item name or lot number..." onkeyup="filterTable()">
@@ -81,34 +81,6 @@
                 <!-- Dynamic Rows -->
             </tbody>
         </table>
-    </div>
-
-    <!-- Modal for Add/Edit -->
-    <div id="itemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
-        <div style="background:white; padding:30px; border-radius:10px; width:400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-            <h3 id="modalTitle" style="margin-top:0; color:#2c3e50;">Add New Item</h3>
-            <input type="hidden" id="editIndex">
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">ITEM NAME</label>
-                <input type="text" id="itemName" style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;">
-            </div>
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">LOT NUMBER</label>
-                <input type="text" id="itemLot" style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;">
-            </div>
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">EXPIRY DATE</label>
-                <input type="date" id="itemExpiry" style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;">
-            </div>
-            <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">QUANTITY</label>
-                <input type="number" id="itemQty" min="0" value="1" style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;">
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button class="btn" style="background:#cbd5e1;" onclick="closeModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveItem()">Save Item</button>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -154,6 +126,7 @@
                                 <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, 1)">+1</button>
                                 <button class="btn btn-danger" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, -1)">-1</button>
                                 <button class="btn" style="padding:5px 10px; font-size:12px; background:#e2e8f0;" onclick="editItem(${index})">Edit</button>
+                                <button class="btn btn-danger" style="padding:5px 10px; font-size:12px; background:#cbd5e1; color:#333;" onclick="deleteItem(${index})">Del</button>
                             </div>
                         </td>
                     </tr>
@@ -167,48 +140,40 @@
             localStorage.setItem('cdl_inventory', JSON.stringify(inventory));
         }
 
-        function openModal(index = null) {
-            document.getElementById('itemModal').style.display = 'flex';
-            if (index !== null) {
-                document.getElementById('modalTitle').innerText = 'Edit Item';
-                document.getElementById('editIndex').value = index;
-                document.getElementById('itemName').value = inventory[index].name;
-                document.getElementById('itemLot').value = inventory[index].lot;
-                document.getElementById('itemExpiry').value = inventory[index].expiry;
-                document.getElementById('itemQty').value = inventory[index].qty;
-            } else {
-                document.getElementById('modalTitle').innerText = 'Add New Item';
-                document.getElementById('editIndex').value = '';
-                document.getElementById('itemName').value = '';
-                document.getElementById('itemLot').value = '';
-                document.getElementById('itemExpiry').value = '';
-                document.getElementById('itemQty').value = '1';
-            }
-        }
+        function addNewItem() {
+            const name = prompt('Enter Item Name:');
+            if (!name) return;
+            const lot = prompt('Enter Lot Number:', 'LOT-2026-');
+            const expiry = prompt('Enter Expiry Date (YYYY-MM-DD):', '2027-12-31');
+            const qty = parseInt(prompt('Enter Initial Quantity:', '1')) || 0;
 
-        function closeModal() {
-            document.getElementById('itemModal').style.display = 'none';
-        }
-
-        function saveItem() {
-            const index = document.getElementById('editIndex').value;
-            const name = document.getElementById('itemName').value.trim();
-            const lot = document.getElementById('itemLot').value.trim();
-            const expiry = document.getElementById('itemExpiry').value;
-            const qty = parseInt(document.getElementById('itemQty').value) || 0;
-
-            if (!name) { alert('Please enter item name'); return; }
-
-            const newItem = { name, lot, expiry, qty };
-
-            if (index === '') {
-                inventory.push(newItem);
-            } else {
-                inventory[index] = newItem;
-            }
-
-            closeModal();
+            inventory.push({ name, lot, expiry, qty });
             renderTable();
+        }
+
+        function editItem(index) {
+            const item = inventory[index];
+            const name = prompt('Edit Item Name:', item.name);
+            if (name === null) return;
+            const lot = prompt('Edit Lot Number:', item.lot);
+            const expiry = prompt('Edit Expiry Date (YYYY-MM-DD):', item.expiry);
+            const qty = parseInt(prompt('Edit Quantity:', item.qty));
+
+            inventory[index] = {
+                name: name.trim() || item.name,
+                lot: lot ? lot.trim() : item.lot,
+                expiry: expiry ? expiry.trim() : item.expiry,
+                qty: isNaN(qty) ? item.qty : qty
+            };
+
+            renderTable();
+        }
+
+        function deleteItem(index) {
+            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
+                inventory.splice(index, 1);
+                renderTable();
+            }
         }
 
         function adjustQty(index, amount) {
