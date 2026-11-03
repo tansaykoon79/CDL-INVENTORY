@@ -69,7 +69,7 @@
 
         <div class="toolbar">
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="openAddModal()">+ Add New Item</button>
+                <button class="btn btn-primary" onclick="openModal()">+ Add New Item</button>
                 <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
             </div>
             <input type="text" id="searchInput" class="search-box" placeholder="Search item name or lot number..." onkeyup="filterTable()">
@@ -92,10 +92,11 @@
         </table>
     </div>
 
-    <!-- Pop-up Modal Window -->
-    <div id="addModal" class="modal-overlay">
+    <!-- Pop-up Modal Window for Add/Edit -->
+    <div id="itemModal" class="modal-overlay">
         <div class="modal-content">
-            <h3 class="modal-header">Add New Inventory Item</h3>
+            <h3 id="modalTitle" class="modal-header">Add New Inventory Item</h3>
+            <input type="hidden" id="editIndex">
             <div class="form-group">
                 <label>ITEM NAME</label>
                 <input type="text" id="modalItemName" placeholder="e.g. Sterile Normal Saline 0.9%">
@@ -113,8 +114,8 @@
                 <input type="number" id="modalItemQty" min="0" value="1">
             </div>
             <div class="modal-actions">
-                <button class="btn" style="background:#e2e8f0; color:#333;" onclick="closeAddModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveNewItem()">Save Item</button>
+                <button class="btn" style="background:#e2e8f0; color:#333;" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveItem()">Save Item</button>
             </div>
         </div>
     </div>
@@ -161,7 +162,7 @@
                             <div class="action-btns">
                                 <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, 1)">+1</button>
                                 <button class="btn btn-danger" style="padding:5px 10px; font-size:12px;" onclick="adjustQty(${index}, -1)">-1</button>
-                                <button class="btn" style="padding:5px 10px; font-size:12px; background:#e2e8f0;" onclick="editItem(${index})">Edit</button>
+                                <button class="btn" style="padding:5px 10px; font-size:12px; background:#e2e8f0;" onclick="openModal(${index})">Edit</button>
                                 <button class="btn btn-danger" style="padding:5px 10px; font-size:12px; background:#cbd5e1; color:#333;" onclick="deleteItem(${index})">Del</button>
                             </div>
                         </td>
@@ -170,94 +171,3 @@
             });
 
             document.getElementById('totalCount').innerText = inventory.length;
-            document.getElementById('lowCount').innerText = lowStockCount;
-            document.getElementById('expCount').innerText = expiringCount;
-            
-            localStorage.setItem('cdl_inventory', JSON.stringify(inventory));
-        }
-
-        /* Modal Functions */
-        function openAddModal() {
-            document.getElementById('modalItemName').value = '';
-            document.getElementById('modalItemLot').value = '';
-            document.getElementById('modalItemExpiry').value = '';
-            document.getElementById('modalItemQty').value = '1';
-            document.getElementById('addModal').style.display = 'flex';
-        }
-
-        function closeAddModal() {
-            document.getElementById('addModal').style.display = 'none';
-        }
-
-        function saveNewItem() {
-            const name = document.getElementById('modalItemName').value.trim();
-            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A';
-            const expiry = document.getElementById('modalItemExpiry').value;
-            const qty = parseInt(document.getElementById('modalItemQty').value) || 0;
-
-            if (!name) {
-                alert('Please enter an Item Name.');
-                return;
-            }
-
-            inventory.push({ name, lot, expiry, qty });
-            renderTable();
-            closeAddModal();
-        }
-
-        function editItem(index) {
-            const item = inventory[index];
-            const name = prompt('Edit Item Name:', item.name);
-            if (name === null) return;
-            const lot = prompt('Edit Lot Number:', item.lot);
-            const expiry = prompt('Edit Expiry Date (YYYY-MM-DD):', item.expiry);
-            const qty = parseInt(prompt('Edit Quantity:', item.qty));
-
-            inventory[index] = {
-                name: name.trim() || item.name,
-                lot: lot ? lot.trim() : item.lot,
-                expiry: expiry ? expiry.trim() : item.expiry,
-                qty: isNaN(qty) ? item.qty : qty
-            };
-
-            renderTable();
-        }
-
-        function deleteItem(index) {
-            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
-                inventory.splice(index, 1);
-                renderTable();
-            }
-        }
-
-        function adjustQty(index, amount) {
-            inventory[index].qty += amount;
-            if (inventory[index].qty < 0) inventory[index].qty = 0;
-            renderTable();
-        }
-
-        function filterTable() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = inventory.filter(item => 
-                item.name.toLowerCase().includes(query) || item.lot.toLowerCase().includes(query)
-            );
-            renderTable(filtered);
-        }
-
-        function exportCSV() {
-            let csv = 'Item Name,Lot Number,Expiry Date,Quantity\n';
-            inventory.forEach(i => {
-                csv += `"${i.name}","${i.lot}","${i.expiry}",${i.qty}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'AI_Inventory_CDL_Backup.csv';
-            a.click();
-        }
-
-        renderTable();
-    </script>
-</body>
-</html>
