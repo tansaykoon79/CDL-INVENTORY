@@ -33,6 +33,15 @@
         .tag-low { color: #dc2626; font-weight: bold; font-size: 12px; background: #fee2e2; padding: 3px 8px; border-radius: 4px; display: inline-block; }
         .tag-exp { color: #d97706; font-weight: bold; font-size: 12px; background: #fef3c7; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 2px; }
         .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* Pop-up Modal Styling */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-header { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -60,7 +69,7 @@
 
         <div class="toolbar">
             <div style="display: flex; gap: 10px;">
-                <button class="btn btn-primary" onclick="addNewItem()">+ Add New Item</button>
+                <button class="btn btn-primary" onclick="openAddModal()">+ Add New Item</button>
                 <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
             </div>
             <input type="text" id="searchInput" class="search-box" placeholder="Search item name or lot number..." onkeyup="filterTable()">
@@ -81,6 +90,33 @@
                 <!-- Dynamic Rows -->
             </tbody>
         </table>
+    </div>
+
+    <!-- Pop-up Modal Window -->
+    <div id="addModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-header">Add New Inventory Item</h3>
+            <div class="form-group">
+                <label>ITEM NAME</label>
+                <input type="text" id="modalItemName" placeholder="e.g. Sterile Normal Saline 0.9%">
+            </div>
+            <div class="form-group">
+                <label>LOT NUMBER</label>
+                <input type="text" id="modalItemLot" placeholder="e.g. LOT-2026-A104">
+            </div>
+            <div class="form-group">
+                <label>EXPIRY DATE (CALENDAR)</label>
+                <input type="date" id="modalItemExpiry">
+            </div>
+            <div class="form-group">
+                <label>QUANTITY</label>
+                <input type="number" id="modalItemQty" min="0" value="1">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" style="background:#e2e8f0; color:#333;" onclick="closeAddModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewItem()">Save Item</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -140,15 +176,33 @@
             localStorage.setItem('cdl_inventory', JSON.stringify(inventory));
         }
 
-        function addNewItem() {
-            const name = prompt('Enter Item Name:');
-            if (!name) return;
-            const lot = prompt('Enter Lot Number:', 'LOT-2026-');
-            const expiry = prompt('Enter Expiry Date (YYYY-MM-DD):', '2027-12-31');
-            const qty = parseInt(prompt('Enter Initial Quantity:', '1')) || 0;
+        /* Modal Functions */
+        function openAddModal() {
+            document.getElementById('modalItemName').value = '';
+            document.getElementById('modalItemLot').value = '';
+            document.getElementById('modalItemExpiry').value = '';
+            document.getElementById('modalItemQty').value = '1';
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+
+        function saveNewItem() {
+            const name = document.getElementById('modalItemName').value.trim();
+            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A';
+            const expiry = document.getElementById('modalItemExpiry').value;
+            const qty = parseInt(document.getElementById('modalItemQty').value) || 0;
+
+            if (!name) {
+                alert('Please enter an Item Name.');
+                return;
+            }
 
             inventory.push({ name, lot, expiry, qty });
             renderTable();
+            closeAddModal();
         }
 
         function editItem(index) {
