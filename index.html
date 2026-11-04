@@ -21,6 +21,8 @@
         .btn-primary:hover { background: #2980b9; }
         .btn-success { background: #2ecc71; color: white; }
         .btn-success:hover { background: #27ae60; }
+        .btn-info { background: #8e44ad; color: white; }
+        .btn-info:hover { background: #732d91; }
         .btn-danger { background: #e74c3c; color: white; }
         .btn-danger:hover { background: #c0392b; }
         .search-box { padding: 10px 15px; width: 300px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
@@ -71,6 +73,8 @@
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-primary" type="button" onclick="openModal()">+ Add New Item</button>
                 <button class="btn btn-success" type="button" onclick="exportCSV()">Export CSV</button>
+                <button class="btn btn-info" type="button" onclick="document.getElementById('csvFileInput').click()">Import CSV</button>
+                <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(event)">
             </div>
             <input type="text" id="searchInput" class="search-box" placeholder="Search item name or lot number..." onkeyup="filterTable()">
         </div>
@@ -121,7 +125,6 @@
     </div>
 
     <script>
-        // Initialize inventory data safely
         let inventory = [
             { name: "ACID WASH", lot: "88100401", expiry: "2028-02-28", qty: 16 },
             { name: "ACTIVATOR", lot: "888918", expiry: "2027-12-31", qty: 3 }
@@ -219,68 +222,4 @@
         function saveItem() {
             const indexVal = document.getElementById('editIndex').value;
             const name = document.getElementById('modalItemName').value.trim();
-            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A';
-            const expiry = document.getElementById('modalItemExpiry').value;
-            const qty = parseInt(document.getElementById('modalItemQty').value) || 0;
-
-            if (!name) {
-                alert('Please enter an Item Name.');
-                return;
-            }
-
-            const newItem = { name, lot, expiry, qty };
-
-            if (indexVal === '' || indexVal === null || indexVal === undefined) {
-                inventory.push(newItem);
-            } else {
-                const idx = parseInt(indexVal);
-                inventory[idx] = newItem;
-            }
-
-            closeModal();
-            renderTable();
-        }
-
-        function deleteItem(index) {
-            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
-                inventory.splice(index, 1);
-                renderTable();
-            }
-        }
-
-        function adjustQty(index, amount) {
-            inventory[index].qty += amount;
-            if (inventory[index].qty < 0) inventory[index].qty = 0;
-            renderTable();
-        }
-
-        function filterTable() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = inventory.filter(item => 
-                (item.name && item.name.toLowerCase().includes(query)) || 
-                (item.lot && item.lot.toLowerCase().includes(query))
-            );
-            renderTable(filtered);
-        }
-
-        function exportCSV() {
-            let csv = 'Item Name,Lot Number,Expiry Date,Quantity\n';
-            inventory.forEach(i => {
-                csv += `"${i.name || ''}","${i.lot || ''}","${i.expiry || ''}",${i.qty || 0}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'AI_Inventory_CDL_Backup.csv';
-            a.click();
-        }
-
-        // Render on page load
-        window.onload = function() {
-            renderTable();
-        };
-        renderTable();
-    </script>
-</body>
-</html>
+            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A
