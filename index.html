@@ -222,4 +222,139 @@
         function saveItem() {
             const indexVal = document.getElementById('editIndex').value;
             const name = document.getElementById('modalItemName').value.trim();
-            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A
+            const lot = document.getElementById('modalItemLot').value.trim() || 'N/A';
+            const expiry = document.getElementById('modalItemExpiry').value;
+            const qty = parseInt(document.getElementById('modalItemQty').value) || 0;
+
+            if (!name) {
+                alert('Please enter an Item Name.');
+                return;
+            }
+
+            const newItem = { name, lot, expiry, qty };
+
+            if (indexVal === '' || indexVal === null || indexVal === undefined) {
+                inventory.push(newItem);
+            } else {
+                const idx = parseInt(indexVal);
+                inventory[idx] = newItem;
+            }
+
+            closeModal();
+            renderTable();
+        }
+
+        function deleteItem(index) {
+            if (confirm(`Are you sure you want to delete "${inventory[index].name}"?`)) {
+                inventory.splice(index, 1);
+                renderTable();
+            }
+        }
+
+        function adjustQty(index, amount) {
+            inventory[index].qty += amount;
+            if (inventory[index].qty < 0) inventory[index].qty = 0;
+            renderTable();
+        }
+
+        function filterTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = inventory.filter(item => 
+                (item.name && item.name.toLowerCase().includes(query)) || 
+                (item.lot && item.lot.toLowerCase().includes(query))
+            );
+            renderTable(filtered);
+        }
+
+        function exportCSV() {
+            let csv = 'Item Name,Lot Number,Expiry Date,Quantity\n';
+            inventory.forEach(i => {
+                csv += `"${i.name || ''}","${i.lot || ''}","${i.expiry || ''}",${i.qty || 0}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AI_Inventory_CDL_Backup.csv';
+            a.click();
+        }
+
+        function importCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split(/\r\n|\n/);
+                let newItems = [];
+
+                // Detect headers or column mapping from the first line
+                let nameIdx = 0, lotIdx = 1, expiryIdx = 2, qtyIdx = 3;
+                let startIndex = 0;
+
+                if (lines.length > 0) {
+                    const firstLine = lines[0].toLowerCase();
+                    if (firstLine.includes('item') || firstLine.includes('name') || firstLine.includes('lot') || firstLine.includes('qty')) {
+                        startIndex = 1; // Skip header row
+                        const headers = firstLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                        
+                        headers.forEach((h, idx) => {
+                            if (h.includes('name') || h.includes('item')) nameIdx = idx;
+                            if (h.includes('lot') || h.includes('batch')) lotIdx = idx;
+                            if (h.includes('exp') || h.includes('date')) expiryIdx = idx;
+                            if (h.includes('qty') || h.includes('quant') || h.includes('stock')) qtyIdx = idx;
+                        });
+                    }
+                }
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    // Robust CSV row parser
+                    const row = [];
+                    let inQuote = false;
+                    let val = '';
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuote = !inQuote;
+                        } else if (char === ',' && !inQuote) {
+                            row.push(val.trim().replace(/^"|"$/g, ''));
+                            val = '';
+                        } else {
+                            val += char;
+                        }
+                    }
+                    row.push(val.trim().replace(/^"|"$/g, ''));
+
+                    const name = row[nameIdx] || row[0] || '';
+                    const lot = row[lotIdx] || row[1] || 'N/A';
+                    const expiry = row[expiryIdx] || row[2] || '';
+                    const qty = parseInt(row[qtyIdx] !== undefined ? row[qtyIdx] : row[3]) || 0;
+
+                    if (name) {
+                        newItems.push({ name, lot, expiry, qty });
+                    }
+                }
+
+                if (newItems.length > 0) {
+                    if (confirm(`Successfully read ${newItems.length} items from your file!\n\nClick [OK] to Replace current inventory, or [Cancel] to Append them to existing items.`)) {
+                        inventory = newItems;
+                    } else {
+                        inventory = inventory.concat(newItems);
+                    }
+                    renderTable();
+                    alert(`Successfully imported ${newItems.length} items!`);
+                } else {
+                    alert('Could not read any valid items from this file. Please make sure it is saved as a .csv file with columns for Item Name, Lot, Expiry Date, and Quantity.');
+                }
+                event.target.value = ''; // Reset file input
+            };
+            reader.readAsText(file);
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
